@@ -1,0 +1,21 @@
+/**
+ * Application-wide error codes
+ *
+ * These code remain stable even if messages changes
+ *
+ */
+
+export const ERROR_CODES = {
+  INTERNAL_SERVER_ERROR: "INTERNAL_SERVER_ERROR",
+  VALIDATION_ERROR: "VALIDATION_ERROR",
+  RESOURCE_NOT_FOUND: "RESOURCE_NOT_FOUND",
+  UNAUTHORIZED: "UNAUTHORIZED",
+  FORBIDDEN: "FORBIDDEN",
+  CONFLICT: "CONFLICT",
+  BAD_REQUEST: "BAD_REQUEST",
+  INVALID_CREDENTIALS: "INVALID_CREDENTIALS",
+  INVALID_TOKEN: "INVALID_TOKEN",
+  PASSWORD_REUSE: "PASSWORD_REUSE",
+} as const;
+
+export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];
