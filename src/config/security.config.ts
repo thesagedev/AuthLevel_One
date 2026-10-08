@@ -6,7 +6,7 @@
  */
 
 import compression from 'compression';
-import * as helmetModule from 'helmet';
+import helmet from 'helmet';
 import type { RequestHandler } from 'express';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
@@ -18,7 +18,7 @@ import { ENV } from './env.config.js';
  * Adds common HTTP security headers
  */
 
-export const helmetMiddleware = helmetModule.default();
+export const helmetMiddleware: RequestHandler = helmet();
 
 /**
  * Compression middleware
