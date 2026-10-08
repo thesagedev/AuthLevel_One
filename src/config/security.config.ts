@@ -17,8 +17,9 @@ import { ENV } from './env.config.js';
  *
  * Adds common HTTP security headers
  */
+const helmetFactory = helmet as unknown as () => RequestHandler;
 
-export const helmetMiddleware: RequestHandler = helmet();
+export const helmetMiddleware: RequestHandler = helmetFactory();
 
 /**
  * Compression middleware
