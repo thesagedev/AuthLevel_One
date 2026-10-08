@@ -7,12 +7,17 @@
  * This layer must never contain business logic.
  */
 
-import { UserDocument, UserModel } from "../models/user.model.js";
+import { UserDocument, UserModel } from '../models/user.model.js';
 
 export class AuthRepository {
   // Find a user by email
   async findByEmail(email: string): Promise<UserDocument | null> {
     return UserModel.findByEmail(email);
+  }
+
+  // Find a user by email with password
+  findByEmailWithPassword(email: string) {
+    return UserModel.findByEmailWithPassword(email);
   }
 
   // Find a user by username
@@ -25,7 +30,7 @@ export class AuthRepository {
     return UserModel.create(user);
   }
 
-  // Check whether an email already exist
+  // Check whether an email already exists
   async existsByEmail(email: string): Promise<boolean> {
     const user = await UserModel.exists({
       email: email.toLowerCase(),
@@ -34,7 +39,7 @@ export class AuthRepository {
     return user !== null;
   }
 
-  // Check whether a username already exist
+  // Check whether a username already exists
   async existsByUsername(username: string): Promise<boolean> {
     const user = await UserModel.exists({
       username: username.toLowerCase(),
@@ -45,14 +50,16 @@ export class AuthRepository {
 
   // Find a user by ID
   async findById(id: string): Promise<UserDocument | null> {
-    return UserModel.findById(id).select("+refreshToken");
+    return UserModel.findById(id);
+  }
+
+  // Find a user by ID with refresh token
+  async findByIdWithRefreshToken(id: string): Promise<UserDocument | null> {
+    return UserModel.findById(id).select('+refreshToken');
   }
 
   // Save refresh token hash
-  async updateRefreshToken(
-    userId: string,
-    refreshTokenHash: string | null,
-  ): Promise<void> {
+  async updateRefreshToken(userId: string, refreshTokenHash: string | null): Promise<void> {
     await UserModel.findByIdAndUpdate(userId, {
       refreshToken: refreshTokenHash,
     });
@@ -78,15 +85,13 @@ export class AuthRepository {
   }
 
   // Find password reset token
-  async findByPasswordResetToken(
-    tokenHash: string,
-  ): Promise<UserDocument | null> {
+  async findByPasswordResetToken(tokenHash: string): Promise<UserDocument | null> {
     return UserModel.findOne({
       passwordResetToken: tokenHash,
       passwordResetExpires: {
         $gt: new Date(),
       },
-    }).select("+passwordResetToken +password");
+    }).select('+passwordResetToken +password');
   }
 
   // Clear password reset token
@@ -110,15 +115,13 @@ export class AuthRepository {
   }
 
   // Find user by email verification token
-  async findByEmailVerificationToken(
-    tokenHash: string,
-  ): Promise<UserDocument | null> {
+  async findByEmailVerificationToken(tokenHash: string): Promise<UserDocument | null> {
     return UserModel.findOne({
       emailVerificationToken: tokenHash,
       emailVerificationExpires: {
         $gt: new Date(),
       },
-    }).select("+emailVerificationToken");
+    }).select('+emailVerificationToken');
   }
 
   // Clear email verification token

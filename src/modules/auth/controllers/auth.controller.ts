@@ -5,15 +5,11 @@
  * to authentication
  */
 
-import { RequestHandler } from "express";
-import {
-  AuthService,
-  type LoginUserInput,
-  type RegisterUserInput,
-} from "../services/index.js";
-import { asyncHandler } from "../../../middleware/async-handler.middleware.js";
-import { APIResponse, AppError, ERROR_CODES } from "../../../core/index.js";
-import { refreshCookieOptions } from "../auth.cookies.js";
+import { RequestHandler } from 'express';
+import { AuthService, type LoginUserInput, type RegisterUserInput } from '../services/index.js';
+import { asyncHandler } from '../../../middleware/async-handler.middleware.js';
+import { APIResponse, AppError, ERROR_CODES } from '../../../core/index.js';
+import { refreshCookieOptions } from '../auth.cookies.js';
 
 export class AuthController {
   constructor(private readonly authService = new AuthService()) {}
@@ -22,7 +18,7 @@ export class AuthController {
   register: RequestHandler = asyncHandler(async (req, res) => {
     const user = await this.authService.register(req.body as RegisterUserInput);
     return APIResponse.created(res, {
-      message: "User registered successfully",
+      message: 'User registered successfully',
       data: user,
     });
   });
@@ -31,10 +27,10 @@ export class AuthController {
   login: RequestHandler = asyncHandler(async (req, res) => {
     const result = await this.authService.login(req.body as LoginUserInput);
 
-    res.cookie("refreshToken", result.refreshToken, refreshCookieOptions);
+    res.cookie('refreshToken', result.refreshToken, refreshCookieOptions);
 
     return APIResponse.success(res, {
-      message: "Login successfully",
+      message: 'Login successful',
       data: {
         user: result.user,
         accessToken: result.accessToken,
@@ -50,16 +46,16 @@ export class AuthController {
       throw new AppError({
         statusCode: 401,
         code: ERROR_CODES.UNAUTHORIZED,
-        message: "Refresh token missing",
+        message: 'Refresh token missing',
       });
     }
 
     const result = await this.authService.refresh(refreshToken);
 
-    res.cookie("refreshToken", result.refreshToken, refreshCookieOptions);
+    res.cookie('refreshToken', result.refreshToken, refreshCookieOptions);
 
     return APIResponse.success(res, {
-      message: "Token refreshed successfully",
+      message: 'Token refreshed successfully',
       data: {
         accessToken: result.accessToken,
       },
@@ -74,10 +70,10 @@ export class AuthController {
       await this.authService.logout(refreshToken);
     }
 
-    res.clearCookie("refreshToken", refreshCookieOptions);
+    res.clearCookie('refreshToken', refreshCookieOptions);
 
     return APIResponse.success(res, {
-      message: "Logout successfully",
+      message: 'Logout successfully',
       data: null,
     });
   });
@@ -87,8 +83,18 @@ export class AuthController {
     await this.authService.forgotPassword(req.body.email);
 
     return APIResponse.success(res, {
+      message: 'If an account exists with this email, a password reset link has been sent',
+      data: null,
+    });
+  });
+
+  // Resend verification email
+  resendVerification: RequestHandler = asyncHandler(async (req, res) => {
+    await this.authService.resendVerification(req.body.email);
+
+    return APIResponse.success(res, {
       message:
-        "If an account exists with this email, a password reset link has been sent",
+        'If an unverified account exists with this email, a verification email has been sent.',
       data: null,
     });
   });
@@ -100,7 +106,7 @@ export class AuthController {
     await this.authService.resetPassword(token, password);
 
     return APIResponse.success(res, {
-      message: "Password reset successfully",
+      message: 'Password reset successfully',
       data: null,
     });
   });
@@ -112,7 +118,7 @@ export class AuthController {
     await this.authService.verifyEmail(token);
 
     return APIResponse.success(res, {
-      message: "Email verified successfully",
+      message: 'Email verified successfully',
       data: null,
     });
   });

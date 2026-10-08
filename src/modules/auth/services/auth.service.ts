@@ -5,12 +5,13 @@
  * to authentication
  */
 
-import { logger } from "../../../config/logger.config.js";
-import { AUTH } from "../../../constants/auth.constants.js";
-import { AppError, ERROR_CODES } from "../../../core/index.js";
-import type { UserDocument } from "../models/user.model.js";
-import { AuthRepository } from "../repositories/auth.repository.js";
-import { TokenService } from "./token.service.js";
+import { AUTH } from '../../../constants/auth.constants.js';
+import { AppError, ERROR_CODES } from '../../../core/index.js';
+import { AccessTokenPayload } from '../../../types/jwt.types.js';
+import type { UserDocument } from '../models/user.model.js';
+import { AuthRepository } from '../repositories/auth.repository.js';
+import { EmailService } from './email.service.js';
+import { TokenService } from './token.service.js';
 
 export interface RegisterUserInput {
   email: string;
@@ -39,6 +40,7 @@ export class AuthService {
   constructor(
     private readonly authRepository = new AuthRepository(),
     private readonly tokenService = new TokenService(),
+    private readonly emailService = new EmailService(),
   ) {}
 
   async register(data: RegisterUserInput): Promise<UserDocument> {
@@ -48,59 +50,80 @@ export class AuthService {
       throw new AppError({
         statusCode: 409,
         code: ERROR_CODES.CONFLICT,
-        message: "Email already exist",
+        message: 'Email already exist',
       });
     }
 
-    const usernameExists = await this.authRepository.existsByUsername(
-      data.username,
-    );
+    const usernameExists = await this.authRepository.existsByUsername(data.username);
 
     if (usernameExists) {
       throw new AppError({
         statusCode: 409,
         code: ERROR_CODES.CONFLICT,
-        message: "Username already exist",
+        message: 'Username already exist',
       });
     }
 
     const user = await this.authRepository.create(data);
 
-    const verificationToken =
-      this.tokenService.generateEmailVerificationToken();
+    const verificationToken = this.tokenService.generateEmailVerificationToken();
 
-    const tokenHash =
-      this.tokenService.hashEmailVerificationToken(verificationToken);
+    const tokenHash = this.tokenService.hashEmailVerificationToken(verificationToken);
 
-    const expiresAt = new Date(
-      Date.now() + AUTH.EMAIL_VERIFICATION_TOKEN_EXPIRES_IN,
-    );
+    const expiresAt = new Date(Date.now() + AUTH.EMAIL_VERIFICATION_TOKEN_EXPIRES_IN);
 
-    await this.authRepository.updateEmailVerificationToken(
-      user.id,
-      tokenHash,
-      expiresAt,
-    );
+    await this.authRepository.updateEmailVerificationToken(user.id, tokenHash, expiresAt);
 
-    logger.debug(
-      {
-        userId: user.id,
-        verificationToken,
-        expiresAt,
-      },
-      "Email verification token generated",
-    );
+    await this.emailService.sendVerificationEmail({
+      email: user.email,
+      username: user.username,
+      verificationToken,
+    });
     return user;
   }
 
+  async resendVerification(email: string): Promise<void> {
+    const user = await this.authRepository.findByEmail(email);
+
+    // Always return successfully if the account does not exist
+    // This prevent email/account enumeration
+
+    if (!user) {
+      return;
+    }
+
+    // No verfication email is needed for an already verified account.
+    if (user.isEmailVerified) {
+      return;
+    }
+
+    // Generate a new cryptographically secure verification token.
+    const verificationToken = this.tokenService.generateEmailVerificationToken();
+
+    // Stored only the token hash in MongoDB
+    const tokenHash = this.tokenService.hashEmailVerificationToken(verificationToken);
+
+    // Replace the previous token with a new 24-hour expiry.
+    const expireAt = new Date(Date.now() + AUTH.EMAIL_VERIFICATION_TOKEN_EXPIRES_IN);
+
+    await this.authRepository.updateEmailVerificationToken(user.id, tokenHash, expireAt);
+
+    // Send the raw token only through the email provider.
+    await this.emailService.sendVerificationEmail({
+      email: user.email,
+      username: user.username,
+      verificationToken,
+    });
+  }
+
   async login(data: LoginUserInput): Promise<LoginResponse> {
-    const user = await this.authRepository.findByEmail(data.email);
+    const user = await this.authRepository.findByEmailWithPassword(data.email);
 
     if (!user) {
       throw new AppError({
         statusCode: 401,
         code: ERROR_CODES.INVALID_CREDENTIALS,
-        message: "Invalid email or password",
+        message: 'Invalid email or password',
       });
     }
 
@@ -110,7 +133,15 @@ export class AuthService {
       throw new AppError({
         statusCode: 401,
         code: ERROR_CODES.INVALID_CREDENTIALS,
-        message: "Invalid email or password",
+        message: 'Invalid email or password',
+      });
+    }
+
+    if (!user.isEmailVerified) {
+      throw new AppError({
+        statusCode: 403,
+        code: ERROR_CODES.EMAIL_NOT_VERIFIED,
+        message: 'Email address is not verified',
       });
     }
 
@@ -126,8 +157,6 @@ export class AuthService {
 
     await this.authRepository.updateRefreshToken(user.id, hashRefreshToken);
 
-    logger.debug({ accessToken }, "Access token generated");
-
     return {
       user,
       accessToken,
@@ -138,31 +167,23 @@ export class AuthService {
   async refresh(refreshToken: string): Promise<RefreshResponse> {
     const payload = this.tokenService.verifyRefreshToken(refreshToken);
 
-    const user = await this.authRepository.findById(payload.sub);
+    const user = await this.authRepository.findByIdWithRefreshToken(payload.sub);
 
     if (!user?.refreshToken) {
       throw new AppError({
         statusCode: 401,
         code: ERROR_CODES.UNAUTHORIZED,
-        message: "Invalid refresh token",
+        message: 'Invalid refresh token',
       });
     }
 
-    logger.debug({
-      incoming: refreshToken,
-      stored: user.refreshToken,
-    });
-
-    const isValid = await this.tokenService.compareToken(
-      refreshToken,
-      user.refreshToken,
-    );
+    const isValid = await this.tokenService.compareToken(refreshToken, user.refreshToken);
 
     if (!isValid) {
       throw new AppError({
         statusCode: 401,
         code: ERROR_CODES.UNAUTHORIZED,
-        message: "Invalid refresh token",
+        message: 'Invalid refresh token',
       });
     }
 
@@ -175,8 +196,7 @@ export class AuthService {
       email: user.email,
     });
 
-    const hashedRefreshToken =
-      await this.tokenService.hashToken(newRefreshToken);
+    const hashedRefreshToken = await this.tokenService.hashToken(newRefreshToken);
 
     await this.authRepository.updateRefreshToken(user.id, hashedRefreshToken);
 
@@ -188,33 +208,33 @@ export class AuthService {
 
   async logout(refreshToken: string): Promise<void> {
     // Verify JWT signature
-    const payload = this.tokenService.verifyRefreshToken(refreshToken);
+    let payload: AccessTokenPayload;
 
-    // Find user
-    const user = await this.authRepository.findById(payload.sub);
+    try {
+      payload = this.tokenService.verifyRefreshToken(refreshToken);
+    } catch {
+      return;
+    }
+
+    const user = await this.authRepository.findByIdWithRefreshToken(payload.sub);
 
     if (!user?.refreshToken) {
       return;
     }
 
-    // Compare incoming token with stored hash
-    const isValid = await this.tokenService.compareToken(
-      refreshToken,
-      user.refreshToken,
-    );
+    const isValid = await this.tokenService.compareToken(refreshToken, user.refreshToken);
 
     if (!isValid) {
       return;
     }
 
-    // Remove refresh token
     await this.authRepository.clearRefreshToken(user.id);
   }
 
   async forgotPassword(email: string): Promise<void> {
     const user = await this.authRepository.findByEmail(email);
 
-    // Always return successfully even if the user doesn't email
+    // Always return successfully even if the user doesn't exist
     // This prevents email/account enumeration
     if (!user) {
       return;
@@ -226,24 +246,15 @@ export class AuthService {
     // Store only the hash in MongoDB
     const tokenHash = this.tokenService.hashPasswordResetToken(resetToken);
 
-    // Token expires after 15 minutes
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + AUTH.PASSWORD_RESET_TOKEN_EXPIRES_IN);
 
-    await this.authRepository.updatePasswordResetToken(
-      user.id,
-      tokenHash,
-      expiresAt,
-    );
+    await this.authRepository.updatePasswordResetToken(user.id, tokenHash, expiresAt);
 
-    logger.debug(
-      {
-        userId: user.id,
-        resetToken,
-        tokenHash,
-        expiresAt,
-      },
-      "Password reset token generated",
-    );
+    await this.emailService.sendPasswordResetEmail({
+      email: user.email,
+      username: user.username,
+      resetToken,
+    });
   }
 
   async resetPassword(token: string, newPassword: string): Promise<void> {
@@ -257,7 +268,7 @@ export class AuthService {
       throw new AppError({
         statusCode: 400,
         code: ERROR_CODES.INVALID_TOKEN,
-        message: "Invalid or expired password reset token",
+        message: 'Invalid or expired password reset token',
       });
     }
 
@@ -268,7 +279,7 @@ export class AuthService {
       throw new AppError({
         statusCode: 400,
         code: ERROR_CODES.PASSWORD_REUSE,
-        message: "New password must be different from your current password",
+        message: 'New password must be different from your current password',
       });
     }
 
@@ -289,14 +300,13 @@ export class AuthService {
   async verifyEmail(token: string): Promise<void> {
     const tokenHash = this.tokenService.hashEmailVerificationToken(token);
 
-    const user =
-      await this.authRepository.findByEmailVerificationToken(tokenHash);
+    const user = await this.authRepository.findByEmailVerificationToken(tokenHash);
 
     if (!user) {
       throw new AppError({
         statusCode: 400,
         code: ERROR_CODES.INVALID_TOKEN,
-        message: "Invalid or expired email verification token",
+        message: 'Invalid or expired email verification token',
       });
     }
 
@@ -306,7 +316,7 @@ export class AuthService {
       throw new AppError({
         statusCode: 400,
         code: ERROR_CODES.INVALID_TOKEN,
-        message: "Email is already verified",
+        message: 'Email is already verified',
       });
     }
 

@@ -74,8 +74,6 @@ const userSchema = new Schema<User, UserModel, object, UserQueryHelpers>(
       type: String,
       required: true,
       select: false,
-      minlength: VALIDATION.PASSWORD.MIN_LENGTH,
-      maxlength: VALIDATION.PASSWORD.MAX_LENGTH,
     },
 
     /**
@@ -185,6 +183,16 @@ userSchema.statics.findByEmail = function (
 ): Promise<UserDocument | null> {
   return this.findOne({
     email: email.toLowerCase(),
+  });
+};
+
+// Find user by email with password
+userSchema.statics.findByEmailWithPassword = function (
+  this: UserModel,
+  email: string,
+): Promise<UserDocument | null> {
+  return this.findOne({
+    email: email.toLowerCase(),
   }).select('+password');
 };
 
@@ -223,6 +231,8 @@ userSchema.query.unverified = function (
  */
 export interface UserModel extends Model<User> {
   findByEmail(email: string): Promise<UserDocument | null>;
+
+  findByEmailWithPassword(email: string): Promise<UserDocument | null>;
 
   findByUsername(username: string): Promise<UserDocument | null>;
 }
