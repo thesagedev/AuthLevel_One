@@ -1,20 +1,19 @@
 // App initialization
-import express, { Express } from "express";
-import { appRouter } from "./routes/routes.js";
-import swaggerRoute from "./routes/swagger.js";
-import {
-  errorMiddleware,
-  notFoundMiddleware,
-  requestLogger,
-} from "./middleware/index.js";
+import express, { Express } from 'express';
+import { appRouter } from './routes/routes.js';
+import swaggerRoute from './routes/swagger.js';
+import { errorMiddleware, notFoundMiddleware, requestLogger } from './middleware/index.js';
 import {
   compressionMiddleware,
   cookieParserMiddleware,
   corsMiddleware,
   helmetMiddleware,
-} from "./config/security.config.js";
+} from './config/security.config.js';
 // Create an instance of the Express application
 const app: Express = express();
+
+// Trust the proxy directly in front of the application.
+app.set('trust proxy', 1);
 
 /**
  * HTTP request logging
@@ -25,7 +24,7 @@ const app: Express = express();
 app.use(requestLogger);
 
 // Swagger docs
-app.use("/api/docs", swaggerRoute);
+app.use('/api/docs', swaggerRoute);
 /**
  * HTTP security middleware
  */
