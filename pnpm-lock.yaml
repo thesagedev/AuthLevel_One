@@ -50,6 +50,9 @@ importers:
       pino-http:
         specifier: ^11.0.0
         version: 11.0.0
+      swagger-ui-dist:
+        specifier: ^5.33.1
+        version: 5.33.1
       swagger-ui-express:
         specifier: ^5.0.1
         version: 5.0.1(express@5.2.1)
@@ -1486,8 +1489,8 @@ packages:
     resolution: {integrity: sha512-1tB5mhVo7U+ETBKNf92xT4hrQa3pm0MZ0PQvuDnWgAAGHDsfp4lPSpiS6psrSiet87wyGPh9ft6wmhOMQ0hDiw==}
     engines: {node: '>=14.16'}
 
-  swagger-ui-dist@5.32.15:
-    resolution: {integrity: sha512-TSFER+rFQlf1nzk6WvKkMaHTxAPQ3eAAxigFThnxQedSREanfZgSbJFayZVs/ULnSbNdrJOb99vLD6xpb3R3eg==}
+  swagger-ui-dist@5.33.1:
+    resolution: {integrity: sha512-H872wWkA53bFIsGgi7OWgmq+CRWw3nFQGdJWRqOB9wNwTm6e5ol34+qPDkV4AJlK+gglM2EsJiOOzsGsEGbluA==}
 
   swagger-ui-express@5.0.1:
     resolution: {integrity: sha512-SrNU3RiBGTLLmFU8GIJdOdanJTl4TOmT27tt3bWWHppqYmAZ6IDuEuBvMU6nZq0zLEe6b/1rACXCgLZqO6ZfrA==}
@@ -3008,14 +3011,14 @@ snapshots:
 
   strip-json-comments@5.0.3: {}
 
-  swagger-ui-dist@5.32.15:
+  swagger-ui-dist@5.33.1:
     dependencies:
       '@scarf/scarf': 1.4.0
 
   swagger-ui-express@5.0.1(express@5.2.1):
     dependencies:
       express: 5.2.1
-      swagger-ui-dist: 5.32.15
+      swagger-ui-dist: 5.33.1
 
   thread-stream@4.2.0:
     dependencies:
