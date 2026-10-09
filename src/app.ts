@@ -1,7 +1,6 @@
 // App initialization
 import express, { Express } from 'express';
 import { appRouter } from './routes/routes.js';
-import swaggerRoute from './routes/swagger.js';
 import { errorMiddleware, notFoundMiddleware, requestLogger } from './middleware/index.js';
 import {
   compressionMiddleware,
@@ -9,6 +8,7 @@ import {
   corsMiddleware,
   helmetMiddleware,
 } from './config/security.config.js';
+import { docsRouter } from './docs.router.js';
 // Create an instance of the Express application
 const app: Express = express();
 
@@ -24,7 +24,7 @@ app.set('trust proxy', 1);
 app.use(requestLogger);
 
 // Swagger docs
-app.use('/api/docs', swaggerRoute);
+app.use('api/docs', docsRouter);
 /**
  * HTTP security middleware
  */
